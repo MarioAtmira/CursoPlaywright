@@ -47,6 +47,7 @@ export default defineConfig({
   projects: [
     {
       name: 'chromium',
+      testMatch: /.*tests\/ui\/.*/,
       use: {
         // Se fuerza Chromium maximizado para trabajar en un viewport real.
         browserName: 'chromium',
@@ -59,12 +60,14 @@ export default defineConfig({
 
     {
       name: 'firefox',
+      testMatch: /.*tests\/ui\/.*/,
       // Configuracion desktop predefinida de Playwright para Firefox.
       use: { ...devices['Desktop Firefox'] },
     },
 
     {
       name: 'webkit',
+      testMatch: /.*tests\/ui\/.*/,
       // Configuracion desktop predefinida de Playwright para WebKit/Safari.
       use: { ...devices['Desktop Safari'] },
     },
