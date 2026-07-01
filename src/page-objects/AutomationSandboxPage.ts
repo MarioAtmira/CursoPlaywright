@@ -52,9 +52,6 @@ export class AutomationSandboxPage extends BasePage {
   }
 
   // Busca el texto de referencia en la pagina y valida que se muestre de forma visible.
-  // getByText devuelve un Locator de forma sincrona; no ejecuta ninguna accion
-  // en el navegador hasta que se le encadena .click(), .fill() o una asercion.
-  // La linea inferior muestra unicamente como se construye el locator.
   async getByTextMethod(): Promise<void> {
     this.page.getByText(elementRepository.texts.aBoringText);
 

@@ -1,7 +1,7 @@
 import { test, expect, type Page } from '@playwright/test';
-import { AutomationSandboxPage } from './page-objects/AutomationSandboxPage';
-import { FreeRangeSitePage } from './page-objects/FreeRangeSitePage';
-import { StepScreenshotHelper } from './support/StepScreenshotHelper';
+import { AutomationSandboxPage } from '../../src/page-objects/AutomationSandboxPage';
+import { FreeRangeSitePage } from '../../src/page-objects/FreeRangeSitePage';
+import { StepScreenshotHelper } from '../../src/support/StepScreenshotHelper';
 
 // Cierre explicito del contexto tras cada test. Playwright suele gestionarlo
 // automaticamente, pero aqui queda definido de forma explicita.

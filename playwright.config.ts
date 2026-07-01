@@ -70,7 +70,7 @@ export default defineConfig({
     },
     {
       name: 'API TEST',
-      testMatch: /.*API.spec.ts/,
+      testMatch: /.*tests\/api\/.*/,
       use: {
         // Se fuerza Chromium maximizado para trabajar en un viewport real.
         baseURL: 'https://api.github.com/',
