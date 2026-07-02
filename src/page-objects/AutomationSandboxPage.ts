@@ -3,10 +3,10 @@ import { BasePage } from './BasePage';
 import { elementRepository } from '../repository/elementRepository';
 
 /**
- * Page Object especifico del sandbox de automatizacion.
+ * Page Object for the Automation Sandbox page.
  *
- * Centraliza las acciones y validaciones propias de la segunda ventana
- * para no mezclar responsabilidades con la web principal.
+ * Centralises the actions and assertions specific to the second tab
+ * to avoid mixing responsibilities with the main website.
  */
 export class AutomationSandboxPage extends BasePage {
   constructor(page: Page) {
@@ -14,10 +14,13 @@ export class AutomationSandboxPage extends BasePage {
   }
 
   // ---------------------------------------------------------------------------
-  // Locators: el PO expone los elementos; la accion la elige el llamador.
+  // Locators: the Page Object exposes elements; the caller decides the action.
   // ---------------------------------------------------------------------------
 
-  // Locator del checkbox de pizza.
+  /**
+   * Locator for the pizza checkbox.
+   * @returns A `Locator` targeting the pizza checkbox by role and name.
+   */
   get pizzaCheckbox(): Locator {
     return this.page.getByRole(
       elementRepository.checkboxes.pizzaCheckbox.role,
@@ -25,7 +28,10 @@ export class AutomationSandboxPage extends BasePage {
     );
   }
 
-  // Locator del radio button "Si".
+  /**
+   * Locator for the 'Si' radio button.
+   * @returns A `Locator` targeting the 'Si' radio button by role and name.
+   */
   get radioButtonSi(): Locator {
     return this.page.getByRole(
       elementRepository.radioButtons.radioButtonSi.role,
@@ -34,10 +40,12 @@ export class AutomationSandboxPage extends BasePage {
   }
 
   // ---------------------------------------------------------------------------
-  // Metodos de interaccion especificos de la pagina.
+  // Page-specific interaction methods.
   // ---------------------------------------------------------------------------
 
-  // Pulsa el boton dinamico del sandbox y valida que aparece el mensaje oculto.
+  /**
+   * Clicks the dynamic sandbox button and asserts the hidden message appears.
+   */
   async getByRoleMethod(): Promise<void> {
     await this.page
       .getByRole(elementRepository.buttons.generateId.role, {
@@ -51,7 +59,9 @@ export class AutomationSandboxPage extends BasePage {
     ).toContainText(elementRepository.texts.generatedMessagePartial);
   }
 
-  // Busca el texto de referencia en la pagina y valida que se muestre de forma visible.
+  /**
+   * Locates the reference text on the page and asserts it is visible.
+   */
   async getByTextMethod(): Promise<void> {
     this.page.getByText(elementRepository.texts.aBoringText);
 
@@ -60,7 +70,9 @@ export class AutomationSandboxPage extends BasePage {
     ).toBeVisible();
   }
 
-  // Busca el elemento por su label asociado y rellena el campo con el valor del repositorio.
+  /**
+   * Locates the element by its associated label and fills it with the repository value.
+   */
   async getByLabelMethod(): Promise<void> {
     await this.page
       .getByLabel(elementRepository.texts.aBoringText)

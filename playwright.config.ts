@@ -2,13 +2,13 @@
 import { defineConfig, devices } from '@playwright/test';
 
 /**
- * Configuracion global de Playwright para el proyecto.
+ * Global Playwright configuration for the project.
  *
- * Aqui se centralizan:
- * - la carpeta donde viven los tests,
- * - las opciones comunes de ejecucion,
- * - la URL base del sitio a probar,
- * - y los navegadores sobre los que se lanza la suite.
+ * This file centralises:
+ * - the test directory,
+ * - shared execution options,
+ * - the base URL of the site under test,
+ * - and the browser projects to run against.
  */
 /**
  * Read environment variables from file.
@@ -22,34 +22,34 @@ dotenv.config({ path: path.resolve(__dirname, '.env'), override: true });
  * See https://playwright.dev/docs/test-configuration.
  */
 export default defineConfig({
-  // Directorio raiz desde el que Playwright descubre los tests.
+  // Root directory from which Playwright discovers tests.
   testDir: './tests',
-  /* Ejecuta los tests en paralelo cuando es posible. */
+  /* Run tests in parallel when possible. */
   fullyParallel: true,
-  /* Falla en CI si se deja un test.only por error. */
+  /* Fail in CI if test.only is accidentally left in code. */
   forbidOnly: !!process.env.CI,
-  /* Reintenta solo en CI para reducir falsos negativos puntuales. */
+  /* Retry only in CI to reduce transient failures. */
   retries: process.env.CI ? 2 : 0,
-  /* En CI se limita el paralelismo para dar mas estabilidad. */
+  /* Limit parallelism in CI for more stable runs. */
   workers: process.env.CI ? 1 : undefined,
-  /* Genera el reporte HTML al finalizar la ejecucion. */
+  /* Generate the HTML report after the test run. */
   reporter: 'html',
-  /* Ajustes compartidos por todos los navegadores definidos abajo. */
+  /* Settings shared across all browser projects defined below. */
   use: {
-    // URL base para permitir navegaciones relativas como '/cursos'.
+    // Base URL to allow relative navigations like '/cursos'.
     baseURL: 'https://www.freerangetesters.com/',
 
-    /* Guarda trace al reintentar tests fallidos para facilitar el debug. */
+    /* Save trace on the first retry of a failed test to aid debugging. */
     trace: 'on-first-retry',
   },
 
-  /* Proyectos de ejecucion por navegador. */
+  /* Browser execution projects. */
   projects: [
     {
       name: 'chromium',
       testMatch: /.*tests\/ui\/.*/,
       use: {
-        // Se fuerza Chromium maximizado para trabajar en un viewport real.
+        // Force Chromium maximized to work with a real viewport.
         browserName: 'chromium',
         viewport: null,
         screenshot: 'only-on-failure',
@@ -62,21 +62,21 @@ export default defineConfig({
     {
       name: 'firefox',
       testMatch: /.*tests\/ui\/.*/,
-      // Configuracion desktop predefinida de Playwright para Firefox.
+      // Playwright preset desktop configuration for Firefox.
       use: { ...devices['Desktop Firefox'], screenshot: 'only-on-failure' },
     },
 
     {
       name: 'webkit',
       testMatch: /.*tests\/ui\/.*/,
-      // Configuracion desktop predefinida de Playwright para WebKit/Safari.
+      // Playwright preset desktop configuration for WebKit/Safari.
       use: { ...devices['Desktop Safari'], screenshot: 'only-on-failure' },
     },
     {
       name: 'API TEST',
       testMatch: /.*tests\/api\/.*/,
       use: {
-        // Se fuerza Chromium maximizado para trabajar en un viewport real.
+        // Base URL for the GitHub REST API.
         baseURL: 'https://api.github.com/',
 
         extraHTTPHeaders: {

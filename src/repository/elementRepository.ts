@@ -1,12 +1,12 @@
-// Repositorio centralizado de elementos y textos de apoyo del proyecto.
-// La idea es concentrar aqui selectores, rutas y valores esperados para
-// evitar duplicados dentro de los Page Objects o de los tests.
+// Centralised repository of elements and supporting texts for the project.
+// All selectors, routes, and expected values are kept here to avoid
+// duplication across Page Objects and test specs.
 export const elementRepository = {
   // *****************************
   // *         CONTAINERS        *
   // *****************************
   containers: {
-    // Contenedor del header principal usado para localizar enlaces del menu.
+    // Main header container used to locate navigation links.
     headerTestId: 'header-container',
   },
 
@@ -14,17 +14,17 @@ export const elementRepository = {
   // *           LINKS           *
   // *****************************
   links: {
-    // Enlace del menu superior hacia la seccion de cursos.
+    // Top navigation link to the Courses section.
     courses: {
       name: 'Cursos',
       exact: true,
     },
-    // Enlace del menu superior hacia la seccion de recursos.
+    // Top navigation link to the Resources section.
     resources: {
       name: 'Recursos',
       exact: true,
     },
-    // Enlace que abre el sandbox de automatizacion en una ventana nueva.
+    // Link that opens the Automation Sandbox in a new tab.
     automationSandbox: {
       role: 'link',
       name: 'Automation Sandbox',
@@ -36,7 +36,7 @@ export const elementRepository = {
   // *          ROUTES           *
   // *****************************
   routes: {
-    // Rutas relativas que se combinan con la baseURL de Playwright.
+    // Relative routes combined with the Playwright baseURL.
     home: '/',
     courses: '/cursos',
     resources: '/recursos',
@@ -46,7 +46,7 @@ export const elementRepository = {
   // *          TITLES           *
   // *****************************
   titles: {
-    // Titulos esperados para validar que la navegacion ha llegado a la pagina correcta.
+    // Expected titles used to assert that navigation reached the correct page.
     home: 'Free Range Testers',
     courses: 'Cursos',
   },
@@ -55,7 +55,7 @@ export const elementRepository = {
   // *          BUTTONS          *
   // *****************************
   buttons: {
-    // Boton del sandbox que genera un ID dinamico y muestra un mensaje oculto.
+    // Sandbox button that generates a dynamic ID and reveals a hidden message.
     generateId: {
       role: 'button',
       name: 'Hacé click para generar un ID dinámico y mostrar el elemento oculto',
@@ -68,15 +68,15 @@ export const elementRepository = {
   // *       TEXT ELEMENTS       *
   // *****************************
   hiddenElements: {
-    // Elemento que aparece tras pulsar el boton del sandbox.
+    // Element that appears after clicking the sandbox button.
     generatedMessage: '#hidden-element',
   },
 
   texts: {
-    // Fragmento del texto esperado para validar que el mensaje oculto ha aparecido.
+    // Partial text used to assert the hidden message has appeared.
     generatedMessagePartial: 'aparezco después de 3 segundos',
     aBoringText: 'Un aburrido texto',
-    // Valor de relleno para el campo de texto del sandbox.
+    // Fill value for the sandbox text input.
     testInputValue: 'Texto de prueba',
   },
 
@@ -84,7 +84,7 @@ export const elementRepository = {
   // *        CHECKBOXES         *
   // *****************************
   checkboxes: {
-    // Checkbox del sandbox que se puede marcar y desmarcar.
+    // Sandbox checkbox that can be checked and unchecked.
     pizzaCheckbox: { 
       role: 'checkbox', 
       name: 'Pizza 🍕' 
@@ -95,7 +95,7 @@ export const elementRepository = {
   // *       RADIO BUTTONS       *
   // *****************************
   radioButtons: {
-    // Radio button del sandbox que se puede seleccionar.
+    // Sandbox radio button that can be selected.
     radioButtonSi: { 
       role: 'radio', 
       name: 'Si' 

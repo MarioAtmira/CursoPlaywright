@@ -2,16 +2,16 @@ import { test, expect, type Page } from '@playwright/test';
 import { AutomationSandboxPage } from '../../src/page-objects/AutomationSandboxPage';
 import { FreeRangeSitePage } from '../../src/page-objects/FreeRangeSitePage';
 
-// Cierre explicito del contexto tras cada test. Playwright suele gestionarlo
-// automaticamente, pero aqui queda definido de forma explicita.
+// Explicit context close after each test. Playwright usually handles this
+// automatically, but it is defined here for clarity.
 test.afterEach(async ({ context }) => {
   await context.close();
 });
 
-// Suite orientada a validar la navegacion basica por el sitio principal.
-test.describe('Entrar a la pagina de FreeRangeTesters y navegar por ella', () => {
+// Suite focused on validating basic navigation through the main website.
+test.describe('Navigate the FreeRangeTesters website', () => {
   test('Navigate to freeRangeTesters', async ({ page }) => {
-    // Page Object principal para encapsular acciones reutilizables del sitio.
+    // Main Page Object to encapsulate reusable site actions.
     const site = new FreeRangeSitePage(page);
 
     await test.step('Open FreeRangeTesters home page', async () => {
@@ -29,14 +29,14 @@ test.describe('Entrar a la pagina de FreeRangeTesters y navegar por ella', () =>
   });
 });
 
-// Suite centrada en interacciones con elementos concretos y ventanas secundarias.
-test.describe('Buscamos diferentes tipos de elementos web en FreeRangeTesters', () => {
+// Suite focused on interacting with specific elements and secondary windows.
+test.describe('Interact with different web element types on FreeRangeTesters', () => {
 
   test('Different types of webElement freeRangeTesters', async ({ page, context }) => {
-    // PO de la pagina principal desde la que se navega al sandbox.
+    // Page Object for the main site, used to navigate to the sandbox.
     const poFreeRange = new FreeRangeSitePage(page);
 
-    // Referencias que se rellenan cuando se abre la segunda ventana.
+    // References populated once the second tab is opened.
     let sandboxPage: Page;
     let sandboxPO: AutomationSandboxPage;
 
@@ -50,7 +50,7 @@ test.describe('Buscamos diferentes tipos de elementos web en FreeRangeTesters', 
     });
 
     await test.step('Open Automation Sandbox in new tab', async () => {
-      // Captura la nueva ventana y crea un PO independiente para operar sobre ella.
+      // Captures the new tab and creates an independent Page Object for it.
       sandboxPage = await poFreeRange.openAutomationSandbox(context);
       sandboxPO = new AutomationSandboxPage(sandboxPage);
 
@@ -58,32 +58,32 @@ test.describe('Buscamos diferentes tipos de elementos web en FreeRangeTesters', 
     });
 
     await test.step('Click generate button in sandbox', async () => {
-      // Ejecuta el metodo de busqueda por rol
+      // Uses the getByRole locator strategy.
       await sandboxPO.getByRoleMethod();
     });
 
     await test.step('Validate boring text is visible in sandbox', async () => {
-      // Ejecuta el metodo de busqueda por texto
+      // Uses the getByText locator strategy.
       await sandboxPO.getByTextMethod();
     });
 
     await test.step('Fill input by label in sandbox', async () => {
-      // Ejecuta el metodo de busqueda por label
+      // Uses the getByLabel locator strategy.
       await sandboxPO.getByLabelMethod();
     });
 
     await test.step('Click on checkbox in sandbox', async () => {
-      // El locator lo expone el PO; la accion generica viene de BasePage.
+      // Locator exposed by the Page Object; generic action inherited from BasePage.
       await sandboxPO.checkElement(sandboxPO.pizzaCheckbox);
     });
     
     await test.step('Uncheck checkbox in sandbox', async () => {
-      // El locator lo expone el PO; la accion generica viene de BasePage.
+      // Locator exposed by the Page Object; generic action inherited from BasePage.
       await sandboxPO.uncheckElement(sandboxPO.pizzaCheckbox);
     });
 
     await test.step('Click on radio button in sandbox', async () => {
-      // El locator lo expone el PO; la accion generica viene de BasePage.
+      // Locator exposed by the Page Object; generic action inherited from BasePage.
       await sandboxPO.selectRadioButton(sandboxPO.radioButtonSi);
     });
   });

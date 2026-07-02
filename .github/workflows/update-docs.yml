@@ -1,0 +1,129 @@
+name: Copilot Code Review & Documentation Update
+
+# Triggers when TypeScript source files or tests change on the main branch.
+# Requires GitHub Copilot coding agent enabled on the repository.
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'src/**/*.ts'
+      - 'tests/**/*.ts'
+      - 'playwright.config.ts'
+
+jobs:
+  request-review-and-docs:
+    runs-on: ubuntu-latest
+    # Skip if the commit was already made by Copilot to avoid infinite loops.
+    if: github.actor != 'github-actions[bot]' && github.actor != 'copilot-swe-agent[bot]'
+
+    permissions:
+      contents: write
+      issues: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Detect changed files
+        id: changed
+        uses: tj-actions/changed-files@v44
+        with:
+          files: |
+            src/**/*.ts
+            tests/**/*.ts
+            playwright.config.ts
+
+      - name: Create Copilot review and docs task
+        if: steps.changed.outputs.any_changed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CHANGED_FILES: ${{ steps.changed.outputs.all_changed_files }}
+        run: |
+          gh issue create \
+            --title "review: code quality, ISTQB compliance and docs — commit ${{ github.sha }}" \
+            --body "$(cat <<EOF
+          ## Automated review task
+
+          The following files changed in commit \`${{ github.sha }}\` by **${{ github.actor }}**:
+
+          \`\`\`
+          $CHANGED_FILES
+          \`\`\`
+
+          ---
+
+          ## Instructions
+
+          Analyse every changed file and produce a **structured report as a comment** on this issue before opening a pull request. The report must cover all four sections below.
+
+          ---
+
+          ### 1. Code quality checklist
+
+          For each changed file, verify:
+
+          - [ ] No \`any\` types — all variables and return types are explicitly typed.
+          - [ ] No hardcoded selectors — all locators go through \`src/repository/elementRepository.ts\`.
+          - [ ] No hardcoded credentials or sensitive values — environment variables used and validated in the constructor.
+          - [ ] All async methods are properly awaited; no fire-and-forget calls.
+          - [ ] Single-responsibility principle respected — one Page Object per page/section.
+          - [ ] DRY principle applied — no duplicated logic that belongs in \`BasePage.ts\` or a helper.
+          - [ ] All code, comments, and labels are written in **English**.
+          - [ ] New environment variables are listed in \`.env.example\` with a placeholder and inline comment.
+
+          ---
+
+          ### 2. ISTQB testing best practices checklist
+
+          For each changed test spec, verify:
+
+          - [ ] **Test independence** — each test runs in isolation without depending on another test's state.
+          - [ ] **Single behaviour per test** — each test validates exactly one scenario.
+          - [ ] **Descriptive naming** — \`test.describe\` maps to a functional area; \`test.step\` maps to a test action.
+          - [ ] **Explicit assertions** — every test contains at least one \`expect()\` call.
+          - [ ] **No hard sleeps** — \`page.waitForTimeout\` is absent; Playwright auto-wait or \`expect.poll\` is used instead.
+          - [ ] **Boundary conditions** — form/input tests include at least one boundary-value case.
+          - [ ] **Proper teardown** — \`afterEach\`/\`afterAll\` handles cleanup; no reliance on test order.
+          - [ ] **Page Object usage** — no raw Playwright API calls directly in spec files.
+
+          ---
+
+          ### 3. Documentation
+
+          - Add or update the single-line comment above any new or modified method (one sentence, no param lists).
+          - Update \`README.md\` if any of the following changed: project structure, environment variables, test commands, or the browser projects table.
+          - Follow all conventions in \`.github/copilot-instructions.md\`.
+
+          ---
+
+          ### 4. Analysis report (post as a comment on this issue)
+
+          Structure the comment exactly as follows:
+
+          \`\`\`
+          ## Code Review Report — <commit sha>
+
+          ### Merge recommendation
+          ✅ Ready to merge  /  ⚠️ Merge with minor fixes  /  ❌ Do not merge
+
+          ### Blocking issues (must fix before merge)
+          - <issue> — <file>:<line>
+
+          ### Suggested improvements (non-blocking)
+          - <improvement> — <file>:<line>
+
+          ### Documentation changes applied
+          - <description of each doc change made>
+
+          ### ISTQB compliance
+          - <any test quality issues found and how they were addressed>
+          \`\`\`
+
+          ---
+
+          After posting the report, open a pull request with all code fixes and documentation changes applied.
+          EOF
+          )" \
+            --label "review,documentation" \
+            --assignee "@copilot"

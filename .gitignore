@@ -2,7 +2,8 @@
 # Environment variables (never commit tokens)
 .env
 
-# Playwright
+# Generated documentation
+docs/
 node_modules/
 /test-results/
 /playwright-report/

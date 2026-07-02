@@ -1,0 +1,14 @@
+{
+  "entryPoints": ["src/page-objects", "src/repository"],
+  "entryPointStrategy": "expand",
+  "out": "docs",
+  "name": "FreeRangePW — Test Automation Docs",
+  "readme": "README.md",
+  "includeVersion": true,
+  "categorizeByGroup": true,
+  "hideGenerator": true,
+  "excludePrivate": false,
+  "excludeExternals": true,
+  "plugin": [],
+  "tsconfig": "./tsconfig.json"
+}
