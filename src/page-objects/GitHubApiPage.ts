@@ -6,19 +6,19 @@ import { expect, type APIRequestContext } from '@playwright/test';
  * Encapsulates HTTP calls and their assertions, keeping specs clean
  * and centralising all API access logic in a single place.
  *
- * Required environment variables: GITHUB_USER, GITHUB_REPO, API_TOKEN.
+ * Required environment variables: GH_USER, GH_REPO, API_TOKEN.
  */
 export class GitHubApiPage {
   private readonly user: string;
   private readonly repo: string;
 
   constructor(private readonly request: APIRequestContext) {
-    const user = process.env.GITHUB_USER;
-    const repo = process.env.GITHUB_REPO;
+    const user = process.env.GH_USER;
+    const repo = process.env.GH_REPO;
 
     if (!user || !repo) {
       throw new Error(
-        'Environment variables GITHUB_USER and GITHUB_REPO are required. ' +
+        'Environment variables GH_USER and GH_REPO are required. ' +
         'Copy .env.example to .env and fill in the values.'
       );
     }

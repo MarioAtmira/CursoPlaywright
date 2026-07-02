@@ -25,31 +25,16 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Detect changed files
-        id: changed
-        uses: tj-actions/changed-files@v44
-        with:
-          files: |
-            src/**/*.ts
-            tests/**/*.ts
-            playwright.config.ts
-
       - name: Create Copilot review and docs task
-        if: steps.changed.outputs.any_changed == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          CHANGED_FILES: ${{ steps.changed.outputs.all_changed_files }}
         run: |
           gh issue create \
             --title "review: code quality, ISTQB compliance and docs — commit ${{ github.sha }}" \
             --body "$(cat <<EOF
           ## Automated review task
 
-          The following files changed in commit \`${{ github.sha }}\` by **${{ github.actor }}**:
-
-          \`\`\`
-          $CHANGED_FILES
-          \`\`\`
+          Files changed in commit \`${{ github.sha }}\` by **${{ github.actor }}** (see the commit diff for details).
 
           ---
 
@@ -124,6 +109,4 @@ jobs:
 
           After posting the report, open a pull request with all code fixes and documentation changes applied.
           EOF
-          )" \
-            --label "review,documentation" \
-            --assignee "@copilot"
+          )"
