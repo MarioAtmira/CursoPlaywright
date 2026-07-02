@@ -52,6 +52,7 @@ export default defineConfig({
         // Se fuerza Chromium maximizado para trabajar en un viewport real.
         browserName: 'chromium',
         viewport: null,
+        screenshot: 'only-on-failure',
         launchOptions: {
           args: ['--start-maximized'],
         },
@@ -62,14 +63,14 @@ export default defineConfig({
       name: 'firefox',
       testMatch: /.*tests\/ui\/.*/,
       // Configuracion desktop predefinida de Playwright para Firefox.
-      use: { ...devices['Desktop Firefox'] },
+      use: { ...devices['Desktop Firefox'], screenshot: 'only-on-failure' },
     },
 
     {
       name: 'webkit',
       testMatch: /.*tests\/ui\/.*/,
       // Configuracion desktop predefinida de Playwright para WebKit/Safari.
-      use: { ...devices['Desktop Safari'] },
+      use: { ...devices['Desktop Safari'], screenshot: 'only-on-failure' },
     },
     {
       name: 'API TEST',
