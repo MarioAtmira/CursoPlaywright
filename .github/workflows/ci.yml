@@ -53,8 +53,8 @@ jobs:
         run: npx playwright test --project="${{ matrix.project }}"
         env:
           CI: true
-          GITHUB_USER: ${{ secrets.GITHUB_USER }}
-          GITHUB_REPO: ${{ secrets.GITHUB_REPO }}
+          GH_USER: ${{ secrets.GH_USER }}
+          GH_REPO: ${{ secrets.GH_REPO }}
           API_TOKEN: ${{ secrets.API_TOKEN }}
 
       - name: Upload Playwright report on failure

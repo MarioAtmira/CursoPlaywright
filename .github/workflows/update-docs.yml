@@ -1,9 +1,9 @@
-name: Copilot Code Review & Documentation Update
+name: Code Quality Report
 
-# Triggers when TypeScript source files or tests change on the main branch.
-# Requires GitHub Copilot coding agent enabled on the repository.
+# Posts an ESLint + TypeScript report as a PR comment when a pull request
+# targeting main touches TypeScript source files.
 on:
-  push:
+  pull_request:
     branches:
       - main
     paths:
@@ -12,101 +12,89 @@ on:
       - 'playwright.config.ts'
 
 jobs:
-  request-review-and-docs:
+  report:
+    name: Lint & type-check report
     runs-on: ubuntu-latest
-    # Skip if the commit was already made by Copilot to avoid infinite loops.
-    if: github.actor != 'github-actions[bot]' && github.actor != 'copilot-swe-agent[bot]'
+    if: github.actor != 'github-actions[bot]'
 
     permissions:
-      contents: write
-      issues: write
+      contents: read
+      pull-requests: write
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Create Copilot review and docs task
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run ESLint and capture output
+        id: eslint
         run: |
-          gh issue create \
-            --title "review: code quality, ISTQB compliance and docs — commit ${{ github.sha }}" \
-            --body "$(cat <<EOF
-          ## Automated review task
+          set +e
+          OUTPUT=$(npm run lint -- --format stylish 2>&1)
+          EXIT_CODE=$?
+          echo "exit_code=$EXIT_CODE" >> $GITHUB_OUTPUT
+          {
+            echo 'output<<EOF'
+            echo "$OUTPUT"
+            echo 'EOF'
+          } >> $GITHUB_OUTPUT
 
-          Files changed in commit \`${{ github.sha }}\` by **${{ github.actor }}** (see the commit diff for details).
+      - name: Run TypeScript type-check and capture output
+        id: tsc
+        run: |
+          set +e
+          OUTPUT=$(npx tsc --noEmit 2>&1)
+          EXIT_CODE=$?
+          echo "exit_code=$EXIT_CODE" >> $GITHUB_OUTPUT
+          {
+            echo 'output<<EOF'
+            echo "$OUTPUT"
+            echo 'EOF'
+          } >> $GITHUB_OUTPUT
 
-          ---
+      - name: Post report as PR comment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const eslintCode = '${{ steps.eslint.outputs.exit_code }}';
+            const tscCode    = '${{ steps.tsc.outputs.exit_code }}';
+            const eslintOut  = `${{ steps.eslint.outputs.output }}`;
+            const tscOut     = `${{ steps.tsc.outputs.output }}`;
 
-          ## Instructions
+            const eslintOk = eslintCode === '0';
+            const tscOk    = tscCode    === '0';
+            const allOk    = eslintOk && tscOk;
 
-          Analyse every changed file and produce a **structured report as a comment** on this issue before opening a pull request. The report must cover all four sections below.
+            const eslintBlock = !eslintOk
+              ? `<details><summary>ESLint output</summary>\n\n\`\`\`\n${eslintOut}\n\`\`\`\n</details>`
+              : '';
+            const tscBlock = !tscOk
+              ? `<details><summary>TypeScript output</summary>\n\n\`\`\`\n${tscOut}\n\`\`\`\n</details>`
+              : '';
 
-          ---
+            const body = [
+              `## Code Quality Report — \`${{ github.sha }}\``,
+              '',
+              `### ${allOk ? '✅ No issues found — safe to merge' : '❌ Issues found — fix before merging'}`,
+              '',
+              '| Check | Status |',
+              '|---|---|',
+              `| ESLint | ${eslintOk ? '✅ Pass' : '❌ Fail'} |`,
+              `| TypeScript | ${tscOk  ? '✅ Pass' : '❌ Fail'} |`,
+              '',
+              eslintBlock,
+              tscBlock,
+            ].join('\n');
 
-          ### 1. Code quality checklist
-
-          For each changed file, verify:
-
-          - [ ] No \`any\` types — all variables and return types are explicitly typed.
-          - [ ] No hardcoded selectors — all locators go through \`src/repository/elementRepository.ts\`.
-          - [ ] No hardcoded credentials or sensitive values — environment variables used and validated in the constructor.
-          - [ ] All async methods are properly awaited; no fire-and-forget calls.
-          - [ ] Single-responsibility principle respected — one Page Object per page/section.
-          - [ ] DRY principle applied — no duplicated logic that belongs in \`BasePage.ts\` or a helper.
-          - [ ] All code, comments, and labels are written in **English**.
-          - [ ] New environment variables are listed in \`.env.example\` with a placeholder and inline comment.
-
-          ---
-
-          ### 2. ISTQB testing best practices checklist
-
-          For each changed test spec, verify:
-
-          - [ ] **Test independence** — each test runs in isolation without depending on another test's state.
-          - [ ] **Single behaviour per test** — each test validates exactly one scenario.
-          - [ ] **Descriptive naming** — \`test.describe\` maps to a functional area; \`test.step\` maps to a test action.
-          - [ ] **Explicit assertions** — every test contains at least one \`expect()\` call.
-          - [ ] **No hard sleeps** — \`page.waitForTimeout\` is absent; Playwright auto-wait or \`expect.poll\` is used instead.
-          - [ ] **Boundary conditions** — form/input tests include at least one boundary-value case.
-          - [ ] **Proper teardown** — \`afterEach\`/\`afterAll\` handles cleanup; no reliance on test order.
-          - [ ] **Page Object usage** — no raw Playwright API calls directly in spec files.
-
-          ---
-
-          ### 3. Documentation
-
-          - Add or update the single-line comment above any new or modified method (one sentence, no param lists).
-          - Update \`README.md\` if any of the following changed: project structure, environment variables, test commands, or the browser projects table.
-          - Follow all conventions in \`.github/copilot-instructions.md\`.
-
-          ---
-
-          ### 4. Analysis report (post as a comment on this issue)
-
-          Structure the comment exactly as follows:
-
-          \`\`\`
-          ## Code Review Report — <commit sha>
-
-          ### Merge recommendation
-          ✅ Ready to merge  /  ⚠️ Merge with minor fixes  /  ❌ Do not merge
-
-          ### Blocking issues (must fix before merge)
-          - <issue> — <file>:<line>
-
-          ### Suggested improvements (non-blocking)
-          - <improvement> — <file>:<line>
-
-          ### Documentation changes applied
-          - <description of each doc change made>
-
-          ### ISTQB compliance
-          - <any test quality issues found and how they were addressed>
-          \`\`\`
-
-          ---
-
-          After posting the report, open a pull request with all code fixes and documentation changes applied.
-          EOF
-          )"
+            await github.rest.issues.createComment({
+              owner:    context.repo.owner,
+              repo:     context.repo.repo,
+              issue_number: context.payload.pull_request.number,
+              body,
+            });
