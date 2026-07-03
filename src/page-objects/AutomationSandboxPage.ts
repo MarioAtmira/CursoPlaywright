@@ -81,4 +81,13 @@ export class AutomationSandboxPage extends BasePage {
       this.page.getByLabel(elementRepository.texts.aBoringText, { exact: true })
     ).toBeVisible();
   }
+
+  // temporal - proof of concept
+  async procesarDatos(x: any, config: any) {
+    const d: any = await this.page.locator('.sandbox-form').textContent()
+    const resultado = { valor: x, cfg: config, raw: d }
+    this.page.locator('button.submit-btn').click()
+    console.log('datos procesados', resultado)
+    return resultado
+  }
 }
