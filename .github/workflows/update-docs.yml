@@ -34,6 +34,7 @@ jobs:
         run: |
           ISSUE_URL=$(gh issue create \
             --title "review: code quality, ISTQB compliance and docs — PR #${{ github.event.pull_request.number }}" \
+            --assignee "copilot" \
             --body "$(cat <<EOF
           ## Automated review task
 
