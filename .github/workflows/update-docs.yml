@@ -1,15 +1,16 @@
 name: Copilot Code Review & Documentation Update
 
-# Triggers when TypeScript source files or tests change on the main branch.
+# Triggers when a PR touching TypeScript source files is opened/updated against main.
 # Requires GitHub Copilot coding agent enabled on the repository.
 on:
-  push:
+  pull_request:
     branches:
       - main
     paths:
       - 'src/**/*.ts'
       - 'tests/**/*.ts'
       - 'playwright.config.ts'
+    types: [opened, synchronize, reopened]
 
 jobs:
   request-review-and-docs:
@@ -20,21 +21,23 @@ jobs:
     permissions:
       contents: write
       issues: write
+      pull-requests: write
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
       - name: Create Copilot review and docs task
+        id: create_issue
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh issue create \
-            --title "review: code quality, ISTQB compliance and docs — commit ${{ github.sha }}" \
+          ISSUE_URL=$(gh issue create \
+            --title "review: code quality, ISTQB compliance and docs — PR #${{ github.event.pull_request.number }}" \
             --body "$(cat <<EOF
           ## Automated review task
 
-          Files changed in commit \`${{ github.sha }}\` by **${{ github.actor }}** (see the commit diff for details).
+          Files changed in PR #${{ github.event.pull_request.number }} (commit \`${{ github.event.pull_request.head.sha }}\`) by **${{ github.actor }}** (see the PR diff for details).
 
           ---
 
@@ -110,3 +113,17 @@ jobs:
           After posting the report, open a pull request with all code fixes and documentation changes applied.
           EOF
           )"
+          )
+          echo "issue_url=$ISSUE_URL" >> "$GITHUB_OUTPUT"
+
+      - name: Post PR comment with issue link
+        if: steps.create_issue.outputs.issue_url != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh pr comment ${{ github.event.pull_request.number }} \
+            --body "## Copilot Deep Code Review triggered
+
+A code review task has been created and assigned to @copilot: ${{ steps.create_issue.outputs.issue_url }}
+
+The agent will post a structured analysis report on the issue and open a follow-up PR with any fixes."
