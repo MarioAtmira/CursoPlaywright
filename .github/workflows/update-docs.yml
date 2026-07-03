@@ -10,6 +10,7 @@ on:
       - 'src/**/*.ts'
       - 'tests/**/*.ts'
       - 'playwright.config.ts'
+      - '.github/workflows/update-docs.yml'
     types: [opened, synchronize, reopened]
 
 jobs:
