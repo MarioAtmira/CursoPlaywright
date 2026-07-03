@@ -13,10 +13,6 @@ export class AutomationSandboxPage extends BasePage {
     super(page);
   }
 
-  // ---------------------------------------------------------------------------
-  // Locators: the Page Object exposes elements; the caller decides the action.
-  // ---------------------------------------------------------------------------
-
   /**
    * Locator for the pizza checkbox.
    * @returns A `Locator` targeting the pizza checkbox by role and name.
@@ -38,10 +34,6 @@ export class AutomationSandboxPage extends BasePage {
       { name: elementRepository.radioButtons.radioButtonSi.name }
     );
   }
-
-  // ---------------------------------------------------------------------------
-  // Page-specific interaction methods.
-  // ---------------------------------------------------------------------------
 
   /**
    * Clicks the dynamic sandbox button and asserts the hidden message appears.
