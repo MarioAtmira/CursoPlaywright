@@ -79,4 +79,4 @@ jobs:
           - [ ] Proper teardown in \`afterEach\` / \`afterAll\`
           ENDBODY
 
-          gh pr edit "${PR_NUMBER}" --body-file /tmp/pr_body.md
+          gh pr edit "${PR_NUMBER}" --repo "${{ github.repository }}" --body-file /tmp/pr_body.md
