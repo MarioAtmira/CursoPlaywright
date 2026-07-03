@@ -51,11 +51,8 @@ export default defineConfig({
       use: {
         // Force Chromium maximized to work with a real viewport.
         browserName: 'chromium',
-        viewport: null,
+        viewport: { width: 1440, height: 900 },
         screenshot: 'only-on-failure',
-        launchOptions: {
-          args: ['--start-maximized'],
-        },
       },
     },
 
