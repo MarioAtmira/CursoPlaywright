@@ -30,78 +30,94 @@ jobs:
 
       - name: Create Copilot documentation audit task
         id: create_issue
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          ISSUE_URL=$(gh issue create \
-            --title "docs: full documentation audit triggered by PR #${{ github.event.pull_request.number }}" \
-            --assignee "copilot" \
-            --body "$(cat <<EOF
-          ## Documentation audit task
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            const body = [
+              '## Documentation audit task',
+              '',
+              `PR #${pr.number} by **${pr.user.login}** touched TypeScript source files.`,
+              'This triggers a full documentation audit of the entire project.',
+              '',
+              '---',
+              '',
+              '## Your mission',
+              '',
+              'Perform the two checks below against the **entire codebase** (not just the changed files).',
+              'Then act on the results as described in Step 3.',
+              '',
+              '---',
+              '',
+              '### Step 1 — TSDoc coverage audit',
+              '',
+              'Read every `.ts` file under `src/` and verify that each public method, getter, setter,',
+              'and class has a TSDoc block comment (`/** */`) that includes:',
+              '',
+              '- A one-sentence description.',
+              '- `@param paramName - Description` for every parameter (omit for zero-parameter methods).',
+              '- `@returns Description` for every non-void method.',
+              '- `@throws {Error} Condition` when the method can throw (if applicable).',
+              '',
+              'Compile a complete list of every undocumented or incomplete entry (file path + method name).',
+              '',
+              '---',
+              '',
+              '### Step 2 — README completeness check',
+              '',
+              'Open `README.md` and verify:',
+              '',
+              '- Every Page Object class under `src/page-objects/` is listed in the **Project structure** section.',
+              '- Every environment variable present in `.env.example` is described.',
+              '- The available test commands are accurate and up to date.',
+              '',
+              '---',
+              '',
+              '### Step 3 — Act on your findings',
+              '',
+              '**If you found missing or incomplete documentation (Step 1 or Step 2):**',
+              '',
+              'Open a pull request that adds the missing TSDoc comments and/or README updates.',
+              '- Modify **only** documentation — do not change any logic, selectors, or test assertions.',
+              '- The PR title must follow: `docs: add missing TSDoc comments and update README`',
+              '- After opening the PR, post a comment on this issue listing every file and method you documented.',
+              '',
+              '**If everything is already documented and README is up to date:**',
+              '',
+              'Post a comment on this issue with exactly:',
+              '> ✅ Nothing to document — all methods are documented and README is up to date.',
+              '',
+              'Do not open a pull request in this case.',
+            ].join('\n');
 
-          PR #${{ github.event.pull_request.number }} by **${{ github.actor }}** touched TypeScript source files.
-          This triggers a full documentation audit of the entire project.
+            const issue = await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `docs: full documentation audit triggered by PR #${pr.number}`,
+              body,
+              assignees: ['copilot'],
+            });
 
-          ---
-
-          ## Your mission
-
-          Perform the two checks below against the **entire codebase** (not just the changed files).
-          Then act on the results as described in Step 3.
-
-          ---
-
-          ### Step 1 — TSDoc coverage audit
-
-          Read every \`.ts\` file under \`src/\` and verify that each public method, getter, setter, and class has a TSDoc block comment (\`/** */\`) that includes:
-
-          - A one-sentence description.
-          - \`@param paramName - Description\` for every parameter (omit for zero-parameter methods).
-          - \`@returns Description\` for every non-void method.
-          - \`@throws {Error} Condition\` when the method can throw (if applicable).
-
-          Compile a complete list of every undocumented or incomplete entry (file path + method name).
-
-          ---
-
-          ### Step 2 — README completeness check
-
-          Open \`README.md\` and verify:
-
-          - Every Page Object class under \`src/page-objects/\` is listed in the **Project structure** section.
-          - Every environment variable present in \`.env.example\` is described.
-          - The available test commands are accurate and up to date.
-
-          ---
-
-          ### Step 3 — Act on your findings
-
-          **If you found missing or incomplete documentation (Step 1 or Step 2):**
-
-          Open a pull request that adds the missing TSDoc comments and/or README updates.
-          - Modify **only** documentation — do not change any logic, selectors, or test assertions.
-          - The PR title must follow: \`docs: add missing TSDoc comments and update README\`
-          - After opening the PR, post a comment on this issue listing every file and method you documented.
-
-          **If everything is already documented and README is up to date:**
-
-          Post a comment on this issue with exactly:
-          > ✅ Nothing to document — all methods are documented and README is up to date.
-
-          Do not open a pull request in this case.
-          EOF
-          )"
-          )
-          echo "issue_url=$ISSUE_URL" >> "$GITHUB_OUTPUT"
+            core.setOutput('issue_url', issue.data.html_url);
+            core.setOutput('issue_number', String(issue.data.number));
 
       - name: Post PR comment with issue link
         if: steps.create_issue.outputs.issue_url != ''
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          gh pr comment ${{ github.event.pull_request.number }} \
-            --body "## Documentation audit triggered
-
-A full TSDoc and README audit task has been created and assigned to @copilot: ${{ steps.create_issue.outputs.issue_url }}
-
-The agent will scan the entire \`src/\` directory, add any missing TSDoc comments, update \`README.md\` if needed, and open a follow-up PR — or confirm that everything is already documented."
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issueUrl = '${{ steps.create_issue.outputs.issue_url }}';
+            const pr = context.payload.pull_request;
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: pr.number,
+              body: [
+                '## Documentation audit triggered',
+                '',
+                `A full TSDoc and README audit task has been created and assigned to @copilot: ${issueUrl}`,
+                '',
+                'The agent will scan the entire `src/` directory, add any missing TSDoc comments,',
+                'update `README.md` if needed, and open a follow-up PR — or confirm that everything is already documented.',
+              ].join('\n'),
+            });
