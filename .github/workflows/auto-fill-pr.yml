@@ -1,0 +1,82 @@
+name: Auto-fill PR Description
+
+# Triggers when a PR against main is opened.
+# Generates the description from branch name and commit history,
+# and auto-checks the correct "Type of change" based on the branch prefix.
+on:
+  pull_request:
+    branches:
+      - main
+    types: [opened]
+
+jobs:
+  fill-description:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+
+    steps:
+      - name: Auto-generate PR description from branch and commits
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          BRANCH="${{ github.head_ref }}"
+          PR_NUMBER="${{ github.event.pull_request.number }}"
+
+          # Auto-detect type of change from branch prefix
+          TYPE_TEST="- [ ]"
+          TYPE_FIX="- [ ]"
+          TYPE_REFACTOR="- [ ]"
+          TYPE_DOCS="- [ ]"
+          TYPE_CI="- [ ]"
+
+          case "$BRANCH" in
+            test/*|feat/*) TYPE_TEST="- [x]"     ;;
+            fix/*)         TYPE_FIX="- [x]"      ;;
+            refactor/*)    TYPE_REFACTOR="- [x]" ;;
+            docs/*)        TYPE_DOCS="- [x]"     ;;
+            ci/*)          TYPE_CI="- [x]"       ;;
+          esac
+
+          # Get the first line of each commit message in the PR
+          COMMITS=$(gh api "repos/${{ github.repository }}/pulls/${PR_NUMBER}/commits" \
+            --jq '[.[] | "- " + (.commit.message | split("\n")[0])] | join("\n")' \
+            || echo "- See commit history")
+
+          cat > /tmp/pr_body.md << ENDBODY
+          ## Description
+
+          **Branch:** \`${BRANCH}\`
+
+          ${COMMITS}
+
+          ## Type of change
+
+          ${TYPE_TEST} New test / Page Object
+          ${TYPE_FIX} Bug fix
+          ${TYPE_REFACTOR} Refactor
+          ${TYPE_DOCS} Documentation
+          ${TYPE_CI} CI / configuration
+
+          ## Checklist
+
+          - [ ] All code and comments are in **English**
+          - [ ] New methods have a TSDoc block comment (\`@param\`, \`@returns\`, \`@throws\`)
+          - [ ] No hardcoded selectors — locators go through \`elementRepository.ts\`
+          - [ ] No hardcoded credentials — environment variables used and validated in the constructor
+          - [ ] No \`any\` types — all variables are explicitly typed
+          - [ ] Async calls are awaited — no fire-and-forget
+          - [ ] \`npm run lint\` passes locally with 0 errors
+          - [ ] New Page Objects are registered in \`README.md\`
+          - [ ] New environment variables are added to \`.env.example\`
+
+          ## ISTQB checklist (if tests were added or modified)
+
+          - [ ] Each test validates a single behaviour
+          - [ ] Tests run independently — no shared mutable state between tests
+          - [ ] \`test.describe\` maps to a functional area; \`test.step\` maps to a test action
+          - [ ] No \`page.waitForTimeout\` — Playwright auto-wait or \`expect.poll\` used instead
+          - [ ] Proper teardown in \`afterEach\` / \`afterAll\`
+          ENDBODY
+
+          gh pr edit "${PR_NUMBER}" --repo "${{ github.repository }}" --body-file /tmp/pr_body.md
