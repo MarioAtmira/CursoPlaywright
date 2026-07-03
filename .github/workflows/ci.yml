@@ -64,3 +64,18 @@ jobs:
           name: playwright-report-${{ matrix.project }}
           path: playwright-report/
           retention-days: 7
+
+  # Summary job — its name matches the required status check in branch protection.
+  # Passes only when all matrix test jobs succeed; fails otherwise.
+  test-summary:
+    name: test
+    if: always()
+    needs: [test]
+    runs-on: ubuntu-latest
+    steps:
+      - name: All tests passed
+        run: |
+          if [ "${{ needs.test.result }}" != "success" ]; then
+            echo "One or more test matrix jobs failed or were cancelled."
+            exit 1
+          fi
