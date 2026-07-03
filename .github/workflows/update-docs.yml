@@ -1,9 +1,10 @@
-name: Code Quality Report
+name: Copilot Deep Code Review
 
-# Posts an ESLint + TypeScript report as a PR comment when a pull request
-# targeting main touches TypeScript source files.
+# Triggers on every PR targeting main that touches TypeScript source files.
+# Requires GitHub Copilot Enterprise with the coding agent enabled.
 on:
   pull_request:
+    types: [opened, synchronize, reopened]
     branches:
       - main
     paths:
@@ -12,89 +13,152 @@ on:
       - 'playwright.config.ts'
 
 jobs:
-  report:
-    name: Lint & type-check report
+  create-deep-review-task:
+    name: Assign deep review to Copilot agent
     runs-on: ubuntu-latest
-    if: github.actor != 'github-actions[bot]'
+    # Avoid infinite loops if Copilot itself opens a PR.
+    if: github.actor != 'copilot-swe-agent[bot]' && github.actor != 'github-actions[bot]'
 
     permissions:
       contents: read
+      issues: write
       pull-requests: write
 
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24
-          cache: npm
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Run ESLint and capture output
-        id: eslint
-        run: |
-          set +e
-          OUTPUT=$(npm run lint -- --format stylish 2>&1)
-          EXIT_CODE=$?
-          echo "exit_code=$EXIT_CODE" >> $GITHUB_OUTPUT
-          {
-            echo 'output<<EOF'
-            echo "$OUTPUT"
-            echo 'EOF'
-          } >> $GITHUB_OUTPUT
-
-      - name: Run TypeScript type-check and capture output
-        id: tsc
-        run: |
-          set +e
-          OUTPUT=$(npx tsc --noEmit 2>&1)
-          EXIT_CODE=$?
-          echo "exit_code=$EXIT_CODE" >> $GITHUB_OUTPUT
-          {
-            echo 'output<<EOF'
-            echo "$OUTPUT"
-            echo 'EOF'
-          } >> $GITHUB_OUTPUT
-
-      - name: Post report as PR comment
+      - name: Create Copilot review issue and notify PR
         uses: actions/github-script@v7
         with:
           script: |
-            const eslintCode = '${{ steps.eslint.outputs.exit_code }}';
-            const tscCode    = '${{ steps.tsc.outputs.exit_code }}';
-            const eslintOut  = `${{ steps.eslint.outputs.output }}`;
-            const tscOut     = `${{ steps.tsc.outputs.output }}`;
+            const pr = context.payload.pull_request;
 
-            const eslintOk = eslintCode === '0';
-            const tscOk    = tscCode    === '0';
-            const allOk    = eslintOk && tscOk;
+            // Collect the list of changed TypeScript files from this PR.
+            const { data: files } = await github.rest.pulls.listFiles({
+              owner: context.repo.owner,
+              repo:  context.repo.repo,
+              pull_number: pr.number,
+            });
 
-            const eslintBlock = !eslintOk
-              ? `<details><summary>ESLint output</summary>\n\n\`\`\`\n${eslintOut}\n\`\`\`\n</details>`
-              : '';
-            const tscBlock = !tscOk
-              ? `<details><summary>TypeScript output</summary>\n\n\`\`\`\n${tscOut}\n\`\`\`\n</details>`
-              : '';
+            const tsFiles = files
+              .filter(f => f.filename.endsWith('.ts') && f.status !== 'removed')
+              .map(f => `- \`${f.filename}\` (${f.status})`)
+              .join('\n') || '- No TypeScript files detected';
 
-            const body = [
-              `## Code Quality Report — \`${{ github.sha }}\``,
-              '',
-              `### ${allOk ? '✅ No issues found — safe to merge' : '❌ Issues found — fix before merging'}`,
-              '',
-              '| Check | Status |',
-              '|---|---|',
-              `| ESLint | ${eslintOk ? '✅ Pass' : '❌ Fail'} |`,
-              `| TypeScript | ${tscOk  ? '✅ Pass' : '❌ Fail'} |`,
-              '',
-              eslintBlock,
-              tscBlock,
-            ].join('\n');
+            const body = `## Deep Code Review Task
 
-            await github.rest.issues.createComment({
-              owner:    context.repo.owner,
-              repo:     context.repo.repo,
-              issue_number: context.payload.pull_request.number,
+**PR:** [#${pr.number} — ${pr.title}](${pr.html_url})
+**Branch:** \`${pr.head.ref}\`
+**Commit:** \`${pr.head.sha.substring(0, 7)}\`
+
+**Changed TypeScript files:**
+${tsFiles}
+
+---
+
+## Context
+
+This is a Playwright test automation project written in TypeScript. The architecture follows the Page Object Model:
+- \`src/page-objects/\` — Page Objects (UI extend \`BasePage\`, API use \`APIRequestContext\`)
+- \`src/repository/elementRepository.ts\` — single source of truth for all selectors, routes and expected texts
+- \`tests/ui/\` — UI test specs (never contain raw Playwright calls)
+- \`tests/api/\` — API test specs
+
+Full coding conventions are in \`.github/copilot-instructions.md\`.
+
+---
+
+## Task 1 — Post an analysis report as a comment on this issue
+
+Review every changed file listed above and check each item below. Report findings or ✅ if all clear.
+
+### Code quality
+- No \`any\` types — all variables and return values are explicitly typed
+- No hardcoded selectors — all locators go through \`src/repository/elementRepository.ts\`
+- No hardcoded credentials or test data — env vars used and validated in constructors
+- All async methods properly awaited — no fire-and-forget calls
+- Single-responsibility principle — one Page Object per page/section
+- DRY principle — no duplicated logic that should live in \`BasePage.ts\` or a helper
+- All code, comments, and test labels written in **English**
+- New environment variables declared in \`.env.example\` with placeholder and inline comment
+
+### ISTQB testing compliance
+- Test independence — each test runs in isolation and in any order
+- Single behaviour per test — one test validates one scenario
+- Descriptive naming — \`test.describe\` maps to a functional area; \`test.step\` maps to a test action
+- Explicit assertions — every test contains at least one \`expect()\` call
+- No hard sleeps — \`page.waitForTimeout\` absent; Playwright auto-wait or \`expect.poll\` used instead
+- Boundary conditions — form/input tests include at least one boundary-value case where applicable
+- Proper teardown — \`afterEach\`/\`afterAll\` used for cleanup; no reliance on test order
+- Page Object usage — no raw Playwright API calls directly in spec files
+
+### TSDoc documentation
+- Every public method and getter has a \`/** */\` TSDoc block comment
+- Format: one-sentence description + \`@param\`, \`@returns\`, \`@throws\` where applicable
+- Example:
+  \`\`\`ts
+  /**
+   * Opens the Courses section from the main header.
+   * @param context - The browser context used to intercept the new page event.
+   * @returns The Page instance representing the newly opened tab.
+   */
+  \`\`\`
+
+### README.md
+- Check if \`README.md\` needs updating due to: new Page Objects, new env vars, changed commands, or updated browser project table
+
+---
+
+Post the report using **exactly** this format:
+
+\`\`\`
+## Deep Code Review Report — PR #${pr.number}
+
+### Merge recommendation
+[✅ Ready to merge | ⚠️ Minor fixes needed — see below | ❌ Do not merge — blocking issues found]
+
+### Code quality
+[findings, or ✅ No issues found]
+
+### ISTQB compliance
+[findings, or ✅ All standards met]
+
+### TSDoc documentation gaps
+[list of methods missing TSDoc, or ✅ All public methods documented]
+
+### README
+[changes needed, or ✅ README is up to date]
+
+### Summary of changes to apply in the follow-up PR
+[bulleted list of every change that will be made]
+\`\`\`
+
+---
+
+## Task 2 — Open a pull request targeting branch \`${pr.head.ref}\`
+
+After posting the report, apply **all fixes** identified in Task 1 and open a PR:
+
+1. Add or update **TSDoc block comments** on every public method or getter that is missing them.
+2. Fix all **code quality violations** found (no \`any\` types, no hardcoded selectors, correct async/await usage).
+3. Update **README.md** if project structure, env vars, commands, or the browser projects table changed.
+4. All changes must pass \`npm run lint\` and \`npx tsc --noEmit\` with zero errors.
+5. Title the PR: \`docs/fix: automated review fixes for PR #${pr.number}\`
+6. In the PR body, reference this issue and list every change made.`;
+
+            // Create the issue and assign to the Copilot coding agent.
+            const { data: issue } = await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo:  context.repo.repo,
+              title: `🤖 Deep review: PR #${pr.number} — ${pr.title}`,
               body,
+              assignees: ['copilot'],
+            });
+
+            // Post a link to the issue as a comment on the PR.
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo:  context.repo.repo,
+              issue_number: pr.number,
+              body: `## 🤖 Copilot deep review requested\n\nA review task has been created and assigned to the Copilot coding agent:\n👉 [Issue #${issue.number}: ${issue.title}](${issue.html_url})\n\nThe agent will:\n1. Post a structured analysis (code quality · ISTQB compliance · TSDoc gaps · README)\n2. Open a follow-up PR on branch \`${pr.head.ref}\` with all fixes applied`,
             });
