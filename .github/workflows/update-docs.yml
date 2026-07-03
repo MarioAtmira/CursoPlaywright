@@ -27,91 +27,67 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Create Copilot review and docs task
+      - name: Create Copilot documentation audit task
         id: create_issue
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           ISSUE_URL=$(gh issue create \
-            --title "review: code quality, ISTQB compliance and docs — PR #${{ github.event.pull_request.number }}" \
+            --title "docs: full documentation audit triggered by PR #${{ github.event.pull_request.number }}" \
             --assignee "copilot" \
             --body "$(cat <<EOF
-          ## Automated review task
+          ## Documentation audit task
 
-          Files changed in PR #${{ github.event.pull_request.number }} (commit \`${{ github.event.pull_request.head.sha }}\`) by **${{ github.actor }}** (see the PR diff for details).
-
-          ---
-
-          ## Instructions
-
-          Analyse every changed file and produce a **structured report as a comment** on this issue before opening a pull request. The report must cover all four sections below.
+          PR #${{ github.event.pull_request.number }} by **${{ github.actor }}** touched TypeScript source files.
+          This triggers a full documentation audit of the entire project.
 
           ---
 
-          ### 1. Code quality checklist
+          ## Your mission
 
-          For each changed file, verify:
-
-          - [ ] No \`any\` types — all variables and return types are explicitly typed.
-          - [ ] No hardcoded selectors — all locators go through \`src/repository/elementRepository.ts\`.
-          - [ ] No hardcoded credentials or sensitive values — environment variables used and validated in the constructor.
-          - [ ] All async methods are properly awaited; no fire-and-forget calls.
-          - [ ] Single-responsibility principle respected — one Page Object per page/section.
-          - [ ] DRY principle applied — no duplicated logic that belongs in \`BasePage.ts\` or a helper.
-          - [ ] All code, comments, and labels are written in **English**.
-          - [ ] New environment variables are listed in \`.env.example\` with a placeholder and inline comment.
+          Perform the two checks below against the **entire codebase** (not just the changed files).
+          Then act on the results as described in Step 3.
 
           ---
 
-          ### 2. ISTQB testing best practices checklist
+          ### Step 1 — TSDoc coverage audit
 
-          For each changed test spec, verify:
+          Read every \`.ts\` file under \`src/\` and verify that each public method, getter, setter, and class has a TSDoc block comment (\`/** */\`) that includes:
 
-          - [ ] **Test independence** — each test runs in isolation without depending on another test's state.
-          - [ ] **Single behaviour per test** — each test validates exactly one scenario.
-          - [ ] **Descriptive naming** — \`test.describe\` maps to a functional area; \`test.step\` maps to a test action.
-          - [ ] **Explicit assertions** — every test contains at least one \`expect()\` call.
-          - [ ] **No hard sleeps** — \`page.waitForTimeout\` is absent; Playwright auto-wait or \`expect.poll\` is used instead.
-          - [ ] **Boundary conditions** — form/input tests include at least one boundary-value case.
-          - [ ] **Proper teardown** — \`afterEach\`/\`afterAll\` handles cleanup; no reliance on test order.
-          - [ ] **Page Object usage** — no raw Playwright API calls directly in spec files.
+          - A one-sentence description.
+          - \`@param paramName - Description\` for every parameter (omit for zero-parameter methods).
+          - \`@returns Description\` for every non-void method.
+          - \`@throws {Error} Condition\` when the method can throw (if applicable).
+
+          Compile a complete list of every undocumented or incomplete entry (file path + method name).
 
           ---
 
-          ### 3. Documentation
+          ### Step 2 — README completeness check
 
-          - Add or update the single-line comment above any new or modified method (one sentence, no param lists).
-          - Update \`README.md\` if any of the following changed: project structure, environment variables, test commands, or the browser projects table.
-          - Follow all conventions in \`.github/copilot-instructions.md\`.
+          Open \`README.md\` and verify:
 
-          ---
-
-          ### 4. Analysis report (post as a comment on this issue)
-
-          Structure the comment exactly as follows:
-
-          \`\`\`
-          ## Code Review Report — <commit sha>
-
-          ### Merge recommendation
-          ✅ Ready to merge  /  ⚠️ Merge with minor fixes  /  ❌ Do not merge
-
-          ### Blocking issues (must fix before merge)
-          - <issue> — <file>:<line>
-
-          ### Suggested improvements (non-blocking)
-          - <improvement> — <file>:<line>
-
-          ### Documentation changes applied
-          - <description of each doc change made>
-
-          ### ISTQB compliance
-          - <any test quality issues found and how they were addressed>
-          \`\`\`
+          - Every Page Object class under \`src/page-objects/\` is listed in the **Project structure** section.
+          - Every environment variable present in \`.env.example\` is described.
+          - The available test commands are accurate and up to date.
 
           ---
 
-          After posting the report, open a pull request with all code fixes and documentation changes applied.
+          ### Step 3 — Act on your findings
+
+          **If you found missing or incomplete documentation (Step 1 or Step 2):**
+
+          Open a pull request that adds the missing TSDoc comments and/or README updates.
+          - Modify **only** documentation — do not change any logic, selectors, or test assertions.
+          - The PR title must follow: \`docs: add missing TSDoc comments and update README\`
+          - After opening the PR, post a comment on this issue listing every file and method you documented.
+
+          **If everything is already documented and README is up to date:**
+
+          Post a comment on this issue with exactly:
+          > ✅ Nothing to document — all methods are documented and README is up to date.
+
+          Do not open a pull request in this case.
           EOF
           )"
           )
@@ -123,8 +99,8 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh pr comment ${{ github.event.pull_request.number }} \
-            --body "## Copilot Deep Code Review triggered
+            --body "## Documentation audit triggered
 
-A code review task has been created and assigned to @copilot: ${{ steps.create_issue.outputs.issue_url }}
+A full TSDoc and README audit task has been created and assigned to @copilot: ${{ steps.create_issue.outputs.issue_url }}
 
-The agent will post a structured analysis report on the issue and open a follow-up PR with any fixes."
+The agent will scan the entire \`src/\` directory, add any missing TSDoc comments, update \`README.md\` if needed, and open a follow-up PR — or confirm that everything is already documented."
