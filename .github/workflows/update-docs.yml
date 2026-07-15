@@ -126,13 +126,30 @@ jobs:
               '**Do not open a PR in that case.**',
             ].join('\n');
 
-            const issue = await github.rest.issues.create({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              title: `docs: full documentation audit triggered by PR #${pr.number}`,
-              body,
-              assignees: ['copilot'],
-            });
+            // Try to assign to the Copilot coding agent.
+            // Falls back to no assignee if the feature is not enabled on this account.
+            let issue;
+            try {
+              issue = await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: `docs: full documentation audit triggered by PR #${pr.number}`,
+                body,
+                assignees: ['copilot'],
+                labels: ['documentation'],
+              });
+              core.info('Issue created and assigned to @copilot.');
+            } catch (err) {
+              core.warning(`Could not assign to @copilot (coding agent may not be enabled): ${err.message}`);
+              issue = await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: `docs: full documentation audit triggered by PR #${pr.number}`,
+                body,
+                labels: ['documentation'],
+              });
+              core.info('Issue created without assignee — assign it to @copilot manually when the coding agent is enabled.');
+            }
 
             core.setOutput('issue_url', issue.data.html_url);
             core.setOutput('issue_number', String(issue.data.number));
