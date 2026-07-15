@@ -13,6 +13,7 @@
     "test:headed": "playwright test --headed",
     "report": "playwright show-report",
     "lint": "eslint src/ tests/ playwright.config.ts",
+    "typecheck": "tsc --noEmit",
     "docs": "typedoc"
   },
   "keywords": [],

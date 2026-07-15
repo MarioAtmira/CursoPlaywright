@@ -1,7 +1,11 @@
-name: Copilot Code Review & Documentation Update
+name: Code Quality Gate + Copilot Documentation Audit
 
 # Triggers when a PR touching TypeScript source files is opened/updated against main.
-# Requires GitHub Copilot coding agent enabled on the repository.
+#
+# Job 1 (code-quality-gate): runs lint + typecheck. Fails the PR if there are violations.
+# Job 2 (request-docs-audit): creates a GitHub Issue assigned to @copilot so it audits
+#   TSDoc coverage and README completeness, then opens a fix PR if anything is missing.
+#   Requires: GitHub Copilot coding agent enabled + repo Actions allowed to create PRs.
 on:
   pull_request:
     branches:
@@ -14,10 +18,40 @@ on:
     types: [opened, synchronize, reopened]
 
 jobs:
-  request-review-and-docs:
+  # ── Job 1: Quality gate ────────────────────────────────────────────────────
+  # This job is a REQUIRED check. It blocks the PR if lint or types fail.
+  code-quality-gate:
+    name: Code Quality Gate
     runs-on: ubuntu-latest
-    # Skip if the commit was already made by Copilot to avoid infinite loops.
-    if: github.actor != 'github-actions[bot]' && github.actor != 'copilot-swe-agent[bot]'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: ESLint — no any, no floating promises, no unused vars
+        run: npm run lint
+
+      - name: TypeScript — strict type check
+        run: npm run typecheck
+
+  # ── Job 2: Documentation audit via Copilot coding agent ───────────────────
+  # Runs only after the quality gate passes so Copilot audits clean code.
+  # Skip if the actor is a bot to prevent infinite loops.
+  request-docs-audit:
+    name: Request Copilot Documentation Audit
+    runs-on: ubuntu-latest
+    needs: code-quality-gate
+    if: >
+      github.actor != 'github-actions[bot]' &&
+      github.actor != 'copilot-swe-agent[bot]' &&
+      github.actor != 'dependabot[bot]'
 
     permissions:
       contents: write
@@ -25,69 +59,71 @@ jobs:
       pull-requests: write
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
       - name: Create Copilot documentation audit task
         id: create_issue
         uses: actions/github-script@v6
         with:
           script: |
             const pr = context.payload.pull_request;
+            const repo = `${context.repo.owner}/${context.repo.repo}`;
             const body = [
-              '## Documentation audit task',
+              '## Your mission — TSDoc & README audit',
               '',
-              `PR #${pr.number} by **${pr.user.login}** touched TypeScript source files.`,
-              'This triggers a full documentation audit of the entire project.',
-              '',
-              '---',
-              '',
-              '## Your mission',
-              '',
-              'Perform the two checks below against the **entire codebase** (not just the changed files).',
-              'Then act on the results as described in Step 3.',
+              `Triggered by PR #${pr.number} (branch \`${pr.head.ref}\`) by **${pr.user.login}**.`,
+              'The code quality gate passed, so the code is clean.',
+              'Now audit documentation across the **entire** project.',
               '',
               '---',
               '',
-              '### Step 1 — TSDoc coverage audit',
+              '## Prerequisites (do these first)',
               '',
-              'Read every `.ts` file under `src/` and verify that each public method, getter, setter,',
-              'and class has a TSDoc block comment (`/** */`) that includes:',
+              `1. Clone or check out the repository: \`${repo}\``,
+              `2. Check out the **base branch** (\`${pr.base.ref}\`) — audit the merged state, not just the PR branch.`,
+              '3. Read every `.ts` file under `src/` before writing anything.',
               '',
-              '- A one-sentence description.',
-              '- `@param paramName - Description` for every parameter (omit for zero-parameter methods).',
+              '---',
+              '',
+              '## Step 1 — TSDoc coverage audit',
+              '',
+              'For every **public** class, method, getter, and setter in `src/` verify the TSDoc block (`/** */`) includes:',
+              '',
+              '- A one-sentence description on the first line.',
+              '- `@param paramName - Description` for every parameter (skip for zero-param methods).',
               '- `@returns Description` for every non-void method.',
-              '- `@throws {Error} Condition` when the method can throw (if applicable).',
+              '- `@throws {ErrorType} Condition` when the member can throw.',
               '',
-              'Compile a complete list of every undocumented or incomplete entry (file path + method name).',
+              'Build a list: `filename → member name → what is missing`.',
               '',
               '---',
               '',
-              '### Step 2 — README completeness check',
+              '## Step 2 — README completeness check',
               '',
               'Open `README.md` and verify:',
               '',
-              '- Every Page Object class under `src/page-objects/` is listed in the **Project structure** section.',
-              '- Every environment variable present in `.env.example` is described.',
-              '- The available test commands are accurate and up to date.',
+              '- Every class under `src/page-objects/` appears in the **Project structure** table.',
+              '- Every variable in `.env.example` is described.',
+              '- Every npm script in `package.json` `"scripts"` is documented under **Available commands**.',
               '',
               '---',
               '',
-              '### Step 3 — Act on your findings',
+              '## Step 3 — Act on your findings',
               '',
-              '**If you found missing or incomplete documentation (Step 1 or Step 2):**',
+              '### If anything is missing or incomplete:',
               '',
-              'Open a pull request that adds the missing TSDoc comments and/or README updates.',
-              '- Modify **only** documentation — do not change any logic, selectors, or test assertions.',
-              '- The PR title must follow: `docs: add missing TSDoc comments and update README`',
-              '- After opening the PR, post a comment on this issue listing every file and method you documented.',
+              '1. Create a new branch named `docs/auto-audit-pr-' + pr.number + '` from `' + pr.base.ref + '`.',
+              '2. Edit only documentation (TSDoc comments and README). **Do NOT change logic, selectors, or assertions.**',
+              '3. Open a pull request:',
+              '   - **Base branch:** `' + pr.base.ref + '`',
+              '   - **Title:** `docs: add missing TSDoc comments and update README (auto-audit)`',
+              '   - **Body:** list every file and method you changed.',
+              '4. Post a comment on **this issue** with a link to the new PR and a summary of changes.',
               '',
-              '**If everything is already documented and README is up to date:**',
+              '### If everything is already documented:',
               '',
               'Post a comment on this issue with exactly:',
               '> ✅ Nothing to document — all methods are documented and README is up to date.',
               '',
-              'Do not open a pull request in this case.',
+              '**Do not open a PR in that case.**',
             ].join('\n');
 
             const issue = await github.rest.issues.create({
@@ -113,11 +149,15 @@ jobs:
               repo: context.repo.repo,
               issue_number: pr.number,
               body: [
-                '## Documentation audit triggered',
+                '## 🤖 Documentation audit in progress',
                 '',
-                `A full TSDoc and README audit task has been created and assigned to @copilot: ${issueUrl}`,
+                `A full TSDoc and README audit has been created and assigned to @copilot:`,
+                `**${issueUrl}**`,
                 '',
-                'The agent will scan the entire `src/` directory, add any missing TSDoc comments,',
-                'update `README.md` if needed, and open a follow-up PR — or confirm that everything is already documented.',
+                'The agent will:',
+                '1. Scan the entire `src/` directory for missing TSDoc.',
+                '2. Check `README.md` is complete.',
+                '3. If anything is missing, **open a follow-up PR** for you to review and merge.',
+                '4. If everything is documented, post a green confirmation on the issue.',
               ].join('\n'),
             });
