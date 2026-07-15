@@ -24,6 +24,9 @@ jobs:
       - name: Run ESLint
         run: npm run lint
 
+      - name: Run TypeScript type check
+        run: npm run typecheck
+
   test:
     name: Tests (${{ matrix.project }})
     runs-on: ubuntu-latest
