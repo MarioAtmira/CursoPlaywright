@@ -1,0 +1,4 @@
+# Every file in the repository requires review from the repo owner.
+# This ensures that automated PRs (e.g. from Copilot coding agent)
+# are never merged without explicit human approval.
+* @MarioAtmira
