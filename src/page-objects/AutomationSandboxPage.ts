@@ -73,4 +73,9 @@ export class AutomationSandboxPage extends BasePage {
       this.page.getByLabel(elementRepository.texts.aBoringText, { exact: true })
     ).toBeVisible();
   }
+
+  // Method intentionally left without TSDoc to trigger the docs audit agent.
+  async getPageTitle(): Promise<string> {
+    return await this.page.title();
+  }
 }
