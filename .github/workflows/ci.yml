@@ -47,6 +47,16 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Cache Playwright browsers
+        # Only browser-based projects install browsers; skip cache for API TEST.
+        if: matrix.project != 'API TEST'
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            playwright-${{ runner.os }}-
+
       - name: Install Playwright browsers
         # API TEST project does not launch a browser; skip browser install for it.
         if: matrix.project != 'API TEST'

@@ -31,17 +31,35 @@ export class GitHubApiPage {
    * Creates an issue and verifies it appears in the repository issue list.
    * @param title - The title of the issue to create.
    * @param body - The body text of the issue to create.
+   * @returns The issue number assigned by GitHub.
    * @throws {Error} if the API returns a non-201 status or the issue does not appear within the poll timeout.
    */
-  async createIssue(title: string, body: string): Promise<void> {
+  async createIssue(title: string, body: string): Promise<number> {
     const response = await this.request.post(`/repos/${this.user}/${this.repo}/issues`, {
       data: { title, body },
     });
     expect(response.status()).toBe(201);
 
+    const created = await response.json() as { number: number };
+
     await expect.poll(async () => {
       const issues = await this.request.get(`/repos/${this.user}/${this.repo}/issues`);
       return await issues.json();
     }, { timeout: 10000 }).toContainEqual(expect.objectContaining({ title, body }));
+
+    return created.number;
+  }
+
+  /**
+   * Closes an existing issue by its number.
+   * @param issueNumber - The number of the issue to close.
+   * @throws {Error} if the API returns a non-200 status.
+   */
+  async closeIssue(issueNumber: number): Promise<void> {
+    const response = await this.request.patch(
+      `/repos/${this.user}/${this.repo}/issues/${issueNumber}`,
+      { data: { state: 'closed' } },
+    );
+    expect(response.status()).toBe(200);
   }
 }

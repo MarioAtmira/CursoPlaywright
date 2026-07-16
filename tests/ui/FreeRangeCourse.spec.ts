@@ -2,12 +2,6 @@ import { test, expect, type Page } from '@playwright/test';
 import { AutomationSandboxPage } from '../../src/page-objects/AutomationSandboxPage';
 import { FreeRangeSitePage } from '../../src/page-objects/FreeRangeSitePage';
 
-// Explicit context close after each test. Playwright usually handles this
-// automatically, but it is defined here for clarity.
-test.afterEach(async ({ context }) => {
-  await context.close();
-});
-
 // Suite focused on validating basic navigation through the main website.
 test.describe('Navigate the FreeRangeTesters website', () => {
   test('Navigate to freeRangeTesters', async ({ page }) => {
