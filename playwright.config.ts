@@ -32,8 +32,12 @@ export default defineConfig({
   retries: process.env.CI ? 2 : 0,
   /* Limit parallelism in CI for more stable runs. */
   workers: process.env.CI ? 1 : undefined,
-  /* Generate the HTML report after the test run. */
-  reporter: 'html',
+  /* Reporters: terminal list for live feedback, HTML for local inspection, GitHub annotations in CI. */
+  reporter: [
+    ['list'],
+    ['html'],
+    ['github'],
+  ],
   /* Settings shared across all browser projects defined below. */
   use: {
     // Base URL to allow relative navigations like '/cursos'.
@@ -74,6 +78,9 @@ export default defineConfig({
       use: {
         // Base URL for the GitHub REST API.
         baseURL: 'https://api.github.com/',
+        // Traces are disabled for API tests: they carry authentication headers
+        // and would persist sensitive token data to disk.
+        trace: 'off',
 
         extraHTTPHeaders: {
           'Accept': 'application/vnd.github.v3+json',

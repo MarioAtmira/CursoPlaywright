@@ -41,11 +41,10 @@ export abstract class BasePage {
 
   /**
    * Selects a radio button and asserts it is selected.
+   * Alias for {@link checkElement} — radio buttons and checkboxes share identical interaction logic.
    * @param locator - The locator of the radio button to select.
    */
   async selectRadioButton(locator: Locator): Promise<void> {
-    await this.scrollToElement(locator);
-    await locator.check();
-    await expect(locator).toBeChecked();
+    await this.checkElement(locator);
   }
 }

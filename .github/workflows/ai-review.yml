@@ -1,0 +1,58 @@
+name: AI Code Review
+
+# Triggers on every PR targeting main (open, new commits, reopen).
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+
+# Minimal permissions following the principle of least privilege.
+# models:read  — access GitHub Models inference endpoint via GITHUB_TOKEN
+# contents:read — checkout the repository
+# pull-requests:write — post/update the review comment on the PR
+permissions:
+  contents: read
+  models: read
+  pull-requests: write
+
+jobs:
+  ai-review:
+    name: AI Code Review
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository (full history)
+        uses: actions/checkout@v4
+        with:
+          # Full history is required so git diff can compare branches correctly.
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Produce a diff containing only text files relevant to this project.
+      # Binary files are excluded. Output is capped by the script itself (30 000 chars).
+      - name: Generate PR diff
+        run: |
+          git fetch origin ${{ github.base_ref }}
+          git diff origin/${{ github.base_ref }}...HEAD \
+            -- '*.ts' '*.yml' '*.yaml' '*.json' '*.md' \
+            | grep -v '^Binary' \
+            > /tmp/pr.diff || true
+          echo "Diff size: $(wc -c < /tmp/pr.diff) bytes"
+
+      - name: Run AI Code Review
+        run: npx tsx .github/scripts/ai-review.ts
+        env:
+          # GITHUB_TOKEN is injected automatically by the Actions runner.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DIFF_FILE: /tmp/pr.diff
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          # GITHUB_REPOSITORY is injected automatically (format: owner/repo).
+          AI_MODEL: gpt-4o-mini
