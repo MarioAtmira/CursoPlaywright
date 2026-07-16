@@ -19,6 +19,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { callModel, DEFAULT_MODEL, type Message } from './ai-client';
+import { requireEnv } from './utils';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -68,31 +69,42 @@ Rules:
 // Internal helpers
 // ---------------------------------------------------------------------------
 
-function requireEnv(name: string): string {
-  const value = process.env[name];
-  if (!value) throw new Error(`Missing required environment variable: ${name}`);
-  return value;
-}
-
 /**
  * Recursively reads all `.ts` files under `dir` and appends their content to
  * `chunks` until the total character budget is exhausted.
  *
+ * Uses `fs.promises` throughout to keep the event loop unblocked.
+ * Inaccessible directories and unreadable files are skipped with a warning.
+ *
  * @param dir - Absolute path to the directory to scan.
  * @param rootDir - Repository root (used for computing relative paths).
  * @param chunks - Accumulator array of formatted file blocks.
- * @param budget - Remaining character budget (mutated via the returned value).
+ * @param budget - Remaining character budget.
  * @returns Remaining character budget after processing the directory.
  */
-function collectSourceFiles(
+async function collectSourceFiles(
   dir: string,
   rootDir: string,
   chunks: string[],
   budget: number,
-): number {
-  if (budget <= 0 || !fs.existsSync(dir)) return budget;
+): Promise<number> {
+  if (budget <= 0) return budget;
 
-  const entries = fs.readdirSync(dir, { withFileTypes: true });
+  let entries: fs.Dirent[];
+  try {
+    entries = await fs.promises.readdir(dir, { withFileTypes: true });
+  } catch (error) {
+    const code = error instanceof Error ? (error as NodeJS.ErrnoException).code : undefined;
+    if (code === 'ENOENT') {
+      console.warn(`[ai-docs] Directory not found, skipping: ${dir}`);
+      return budget;
+    }
+    if (code === 'EACCES' || code === 'EPERM') {
+      console.warn(`[ai-docs] Insufficient permissions to read directory: ${dir}`);
+      return budget;
+    }
+    throw error;
+  }
 
   for (const entry of entries) {
     if (budget <= 0) break;
@@ -100,12 +112,19 @@ function collectSourceFiles(
     const fullPath = path.join(dir, entry.name);
 
     if (entry.isDirectory()) {
-      budget = collectSourceFiles(fullPath, rootDir, chunks, budget);
+      budget = await collectSourceFiles(fullPath, rootDir, chunks, budget);
     } else if (entry.name.endsWith('.ts')) {
-      const content = fs.readFileSync(fullPath, 'utf8');
+      let content: string;
+      try {
+        content = await fs.promises.readFile(fullPath, 'utf8');
+      } catch (error) {
+        const code = error instanceof Error ? (error as NodeJS.ErrnoException).code : 'unknown';
+        console.warn(`[ai-docs] Could not read file (${code}): ${fullPath}`);
+        continue;
+      }
+
       const relative = path.relative(rootDir, fullPath).replace(/\\/g, '/');
-      const block = `\n### File: ${relative}\n\`\`\`typescript\n${content}\n\`\`\``;
-      chunks.push(block);
+      chunks.push(`\n### File: ${relative}\n\`\`\`typescript\n${content}\n\`\`\``);
       budget -= content.length;
     }
   }
@@ -131,7 +150,7 @@ async function main(): Promise<void> {
   let remaining = MAX_SOURCE_CHARS;
 
   for (const dir of SOURCE_DIRS) {
-    remaining = collectSourceFiles(path.join(rootDir, dir), rootDir, chunks, remaining);
+    remaining = await collectSourceFiles(path.join(rootDir, dir), rootDir, chunks, remaining);
   }
 
   if (chunks.length === 0) {

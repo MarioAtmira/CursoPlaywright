@@ -21,6 +21,7 @@
 
 import * as fs from 'fs';
 import { callModel, DEFAULT_MODEL, type Message } from './ai-client';
+import { requireEnv } from './utils';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -68,12 +69,6 @@ Si no detectas problemas relevantes indícalo explícitamente.`;
 // ---------------------------------------------------------------------------
 // Internal helpers
 // ---------------------------------------------------------------------------
-
-function requireEnv(name: string): string {
-  const value = process.env[name];
-  if (!value) throw new Error(`Missing required environment variable: ${name}`);
-  return value;
-}
 
 interface GitHubComment {
   id: number;
